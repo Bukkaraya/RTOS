@@ -109,20 +109,19 @@ write_fifo_to_buffer(uint32_t length) {
 	/* Write the FIFO contents to disk. */
 	uint16_t chunk = 0;
 
-	//free(ptr_picture);
+	free(ptr_picture);
 	// jpeg pic size
 	unsigned int jpeg_size = length*sizeof(uint8_t);
 	// allocate memory to store jpeg picture
-//	if((ptr_picture = malloc(jpeg_size)) == NULL){
-//		printf("camera: ran out of memory\n\r");
-//	}else{
-//		printf("camera: allocated %d bytes of memory for picture\n\r", malloc_usable_size(ptr_picture));
-//	}
-
-	ptr_picture = 0xD0050000;
+	if((ptr_picture = malloc(jpeg_size)) == NULL){
+		printf("camera: ran out of memory\n\r");
+	}else{
+		printf("camera: allocated %d bytes of memory for picture\n\r", malloc_usable_size(ptr_picture));
+	}
 
 	uint8_t* current_picture_ptr = ptr_picture;
-
+	int current_x = 10;
+	int current_y = 10;
 
 	for (uint16_t i = 0; length > 0; ++i) {
 		chunk = MIN(length, BURST_READ_LENGTH);
@@ -132,13 +131,19 @@ write_fifo_to_buffer(uint32_t length) {
 		if(length > 0) {
 			current_picture_ptr += chunk*sizeof(uint8_t);
 		}
-	}
 
+		BSP_LCD_DrawPixel(10, 10, *current_picture_ptr);
+		current_x++;
+		current_y++;
+	}
 
 	printf("Printing Image\r\n");
 
 
+
+
 	// test image
+
 	BSP_LCD_DrawBitmap(20, 100, (uint8_t *)stlogo);
 
     osDelay(500);

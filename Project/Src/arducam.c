@@ -33,6 +33,30 @@ arduchip_write_reg(uint8_t reg, uint8_t value) {
 	return 1;
 }
 
+
+uint8_t
+arduchip_write_reg_16(uint8_t reg, uint16_t value) {
+	ARDUCAM_CS_SELECT;
+	if (spi_write8_8(&hspi4, reg, value) != DEVICES_OK) {
+		return 0;
+	}
+	ARDUCAM_CS_RELEASE;
+	return 1;
+}
+
+
+uint8_t arduchip_configure_qvga() {
+	int i = 0;
+
+	for (i = 0; i < 26; i++) {
+		if(!arduchip_write_reg_16(OV5642_320x240[i].address, OV5642_320x240[i].value)) {
+			return 0;
+		}
+	}
+
+	return 1;
+}
+
 /**
  * Initiate a burst read operation.
  */
@@ -113,6 +137,10 @@ arduchip_detect() {
 		printf("camera/arduchip: not ready\n\r");
 		return 0;
 	}
+
+//	if(!arduchip_configure_qvga()) {
+//		return 0;
+//	}
 
 	printf("camera/arduchip: ready (%x)\n\r", chipId);
 	return 1;
@@ -220,17 +248,20 @@ ov5642_configure() {
 	/* This delay appears to be important. */
 	vTaskDelay(50);
 
-	if (   i2c_array16_8(OV5642_ADDRESS_W, ov5642_dvp_fmt_jpeg_qvga) != DEVICES_OK) {
-		goto error;
-	}
+//	if (   i2c_array16_8(OV5642_ADDRESS_W, ov5642_dvp_fmt_jpeg_qvga) != DEVICES_OK) {
+//		goto error;
+//	}
 
+		if (   i2c_array16_8(OV5642_ADDRESS_W, ov5642_dvp_fmt_jpeg_qvga) != DEVICES_OK) {
+			goto error;
+		}
 
 
 	/* This delay appears to be important. */
 	vTaskDelay(50);
 
 	/* Configure the format and resolution. */
-	if (   i2c_array16_8(OV5642_ADDRESS_W, ov5642_res_720P)          != DEVICES_OK
+	if (   i2c_array16_8(OV5642_ADDRESS_W, OV5642_640x480_RAW)          != DEVICES_OK
 		&& i2c_write16_8(OV5642_ADDRESS_W, 0x4407, 0x0C)             != DEVICES_OK
 	) {
 		goto error;

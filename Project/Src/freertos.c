@@ -84,6 +84,8 @@ osThreadId TaskIntruderHandle;
 osMessageQId CommQueueHandle;
 osMutexId dataMutexHandle;
 
+int currentTimeStamp = 0;
+
 
 typedef struct
 {
@@ -143,7 +145,7 @@ void MX_FREERTOS_Init(void) {
 	osThreadDef(TaskGUI, StartTaskGUI, osPriorityAboveNormal, 0, 128);
 	TaskGUIHandle = osThreadCreate(osThread(TaskGUI), NULL);
 
-	osThreadDef(TaskIntruder, StartTaskIntruder, osPriorityHigh, 0, 128);
+	osThreadDef(TaskIntruder, StartTaskIntruder, osPriorityRealtime, 0, 128);
 	TaskIntruderHandle = osThreadCreate(osThread(TaskIntruder), NULL);
 
 	osMessageQDef(pirQueue, 1, &PIRDataInit);
@@ -183,52 +185,67 @@ void StartTaskGUI(void const * argument)
   osEvent resetMessage;
   PIRData* pirMessage;
 
-  const int intruderMessageLine = 2;
+  const int intruderMessageLine = 3;
   char intruderMessage[100];
 
-  const int currentTimeLine = 1;
-  char currentTimeMessage[100];
+  const int currentTimeLine = 2;
+  char currentTimeMessage[200] = {};
+  char alertMessage[200] = {};
+  int currentTime = 0;
+  int intruderTime = -1;
 
   int intruderDetected = 0;
 
   BSP_LCD_Clear(LCD_COLOR_ORANGE);
+  BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
+  BSP_LCD_SetBackColor(LCD_COLOR_ORANGE);
+  BSP_LCD_SetFont(&Font12);
 
 
   while(1)
   {
-
-
-	  TickType_t currentTickCount = xTaskGetTickCount();
-	  sprintf(currentTimeMessage, "Current Time: %d", currentTickCount);
-
-	  BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
-	  BSP_LCD_SetBackColor(LCD_COLOR_ORANGE);
-	  BSP_LCD_SetFont(&Font12);
+	  currentTimeStamp++;
+	  currentTime = currentTimeStamp;
 
 	  resetMessage = osMessageGet(resetQueueHandle, 200);
-
 	  receivedData = osMessageGet(guiQueueHandle, 200);
+
 
 
 	  if (resetMessage.status == 0x10) {
 		  intruderDetected = 0;
+		   BSP_LCD_Clear(LCD_COLOR_ORANGE);
+		   BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
+		   BSP_LCD_SetBackColor(LCD_COLOR_ORANGE);
+		   BSP_LCD_SetFont(&Font12);
 		  sprintf(intruderMessage, "Resetting Alert...");
-	  } else if(receivedData.status != 0x10 && !intruderDetected) {
-		  sprintf(intruderMessage, "No Intruder..");
-	  } else if (receivedData.status == 0x10) {
+		  intruderTime = -1;
+	  }  else if (receivedData.status == 0x10 && !intruderDetected) {
 		  intruderDetected = 1;
 		  pirMessage = (PIRData *) receivedData.value.p;
-		  sprintf(intruderMessage, "Intruder alert. Timestamp: %d", pirMessage->timeStamp);
-	  } else {
-		  printf("Error Occured. Status Code: %d\r\n", receivedData.status);
+		  intruderTime = pirMessage->timeStamp;
 	  }
+
+	  itoa(currentTime, currentTimeMessage, 10);
 
 	  BSP_LCD_ClearStringLine(intruderMessageLine);
 	  BSP_LCD_SetTextColor(LCD_COLOR_BLUE);
-	  BSP_LCD_DisplayStringAtLine(intruderMessageLine, &intruderMessage);
+
+	  BSP_LCD_DisplayStringAtLine(1, "Current Time:");
+	  BSP_LCD_DisplayStringAtLine(currentTimeLine, &currentTimeMessage);
+
+	  if (!intruderDetected) {
+		  BSP_LCD_DisplayStringAtLine(3, "No Intruder...");
+	  } else {
+		  BSP_LCD_DisplayStringAtLine(3, "Intruder Alert! Timestamp:");
+		  itoa(intruderTime, intruderMessage, 10);
+		  BSP_LCD_DisplayStringAtLine(4, &intruderMessage);
+	  }
 
 
-	  osDelay(250);
+
+
+	  osDelay(800);
   }
 }
 
@@ -264,23 +281,19 @@ void StartTaskIntruder(void const * argument) {
 
 		if (receivedData.status == 0x10) {
 			pirMessage = (PIRData*) receivedData.value.p;
-
 			messageToSend.timeStamp = pirMessage->timeStamp;
+			osMessagePut(guiQueueHandle, &messageToSend, 200);
 
 			captureImage();
-
-			osMessagePut(guiQueueHandle, &messageToSend, 200);
 		}
 
-		osDelay(500);
 	}
 }
 
 
 void notifyIntruderTask() {
-	TickType_t currentTickCount = xTaskGetTickCount() ;
 	PIRData message;
-	message.timeStamp = currentTickCount;
+	message.timeStamp = currentTimeStamp;
 
 	osMessagePut(pirQueueHandle, &message, 20);
 }

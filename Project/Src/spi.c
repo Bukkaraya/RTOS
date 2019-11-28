@@ -232,6 +232,18 @@ spi_write8_8(SPI_HandleTypeDef* hspi, uint8_t address, uint8_t data) {
 	return DEVICES_OK;
 }
 
+/**
+ * Write an 16-bit value to an 8-bit register address over SPI.
+ */
+Devices_StatusTypeDef
+spi_write8_16(SPI_HandleTypeDef* hspi, uint8_t address, uint16_t data) {
+	uint16_t buffer[2] = { address | 0x80, data };
+	if (HAL_SPI_TransmitReceive(hspi, buffer, buffer, 2, 1024) != HAL_OK) {
+		return DEVICES_ERROR;
+	}
+	return DEVICES_OK;
+}
+
 /* USER CODE END 1 */
 
 /**
